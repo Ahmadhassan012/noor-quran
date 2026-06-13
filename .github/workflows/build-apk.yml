@@ -23,8 +23,11 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Accept Android SDK Licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+
       - name: Generate Gradle Wrapper
-        run: gradle wrapper --gradle-version 8.9
+        run: gradle wrapper --gradle-version 9.3.1
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
