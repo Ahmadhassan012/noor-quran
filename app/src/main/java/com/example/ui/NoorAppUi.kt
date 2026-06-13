@@ -4,7 +4,6 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import com.example.R
 import androidx.compose.animation.*
-import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -37,6 +36,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -195,7 +195,6 @@ data class DrawerItem(val screen: AppScreen, val title: String, val icon: ImageV
 
 // 2. ONBOARDING SCREEN
 
-...
 @Composable
 fun OnboardingScreen(viewModel: ConversationViewModel) {
   val step by viewModel.onboardingStep.collectAsState()
