@@ -130,6 +130,18 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
       }
     }
 
+    speechPipeline.onSpeechStarted = {
+      viewModelScope.launch(Dispatchers.Main) {
+        if (audioPlayer.isPlaying.value) {
+          audioPlayer.pause()
+        }
+      }
+    }
+
+    speechPipeline.onListeningFinished = {
+      _isListening.value = false
+    }
+
     speechPipeline.onErrorOccurred = { errMessage ->
       viewModelScope.launch {
         Log.e("ConversationViewModel", "Speech error: $errMessage")
@@ -358,6 +370,28 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
   }
 
   // TRANS ACTIONS
+  fun nextSurah() {
+    val sNum = audioPlayer.currentSurah.value ?: return
+    if (sNum < 114) {
+      audioPlayer.playVerse(sNum + 1, 1, _reciter.value)
+    } else {
+      viewModelScope.launch {
+        speechPipeline.speak("You have reached the end of the Quran.")
+      }
+    }
+  }
+
+  fun previousSurah() {
+    val sNum = audioPlayer.currentSurah.value ?: return
+    if (sNum > 1) {
+      audioPlayer.playVerse(sNum - 1, 1, _reciter.value)
+    } else {
+      viewModelScope.launch {
+        speechPipeline.speak("You are already at the first Surah.")
+      }
+    }
+  }
+
   fun nextVerse() {
     val sNum = audioPlayer.currentSurah.value ?: return
     val vNum = audioPlayer.currentVerse.value ?: return
@@ -496,6 +530,11 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
 
   fun setListening(listening: Boolean) {
     _isListening.value = listening
+    if (listening) {
+      speechPipeline.startListening(oneShot = true)
+    } else {
+      speechPipeline.stopListening()
+    }
   }
 
   override fun onCleared() {

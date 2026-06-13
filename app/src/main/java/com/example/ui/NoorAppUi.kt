@@ -1,9 +1,7 @@
 package com.example.ui
 
 import android.content.Intent
-import android.speech.RecognizerIntent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -386,30 +384,8 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
   val transText by viewModel.speechPipeline.translatedText.collectAsState()
   val userLang by viewModel.userLanguage.collectAsState()
 
-  val voiceLauncher = rememberLauncherForActivityResult(
-    contract = ActivityResultContracts.StartActivityForResult()
-  ) { result ->
-    viewModel.setListening(false)
-    val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-    if (!matches.isNullOrEmpty()) {
-      viewModel.speechPipeline.processSpokenText(matches[0])
-    }
-    viewModel.startHandsFreeListening()
-  }
-
   fun launchVoiceRecognition() {
-    viewModel.speechPipeline.stopListening()
     viewModel.setListening(true)
-    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-      putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-      putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
-      putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
-    }
-    try {
-      voiceLauncher.launch(intent)
-    } catch (e: Exception) {
-      viewModel.setListening(false)
-    }
   }
   
   // Audio Player states
@@ -742,17 +718,17 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
               ) {
                 IconButton(
-                  onClick = { viewModel.previousVerse() },
-                  modifier = Modifier.size(56.dp).testTag("prev_button")
+                  onClick = { viewModel.previousSurah() },
+                  modifier = Modifier.size(56.dp).testTag("prev_surah_button")
                 ) {
-                  Icon(Icons.Filled.SkipPrevious, null, tint = TextPrimary, modifier = Modifier.size(36.dp))
+                  Icon(Icons.Filled.SkipPrevious, "Previous Surah", tint = TextPrimary, modifier = Modifier.size(36.dp))
                 }
 
                 IconButton(
-                  onClick = { viewModel.audioPlayer.seekBackward10s() },
+                  onClick = { viewModel.previousVerse() },
                   modifier = Modifier.size(48.dp)
                 ) {
-                  Icon(Icons.Filled.Replay10, null, tint = TextSecondary, modifier = Modifier.size(28.dp))
+                  Icon(Icons.Filled.FastRewind, "Previous Verse", tint = TextSecondary, modifier = Modifier.size(28.dp))
                 }
 
                 Box(
@@ -780,17 +756,17 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
                 }
 
                 IconButton(
-                  onClick = { viewModel.audioPlayer.seekForward10s() },
+                  onClick = { viewModel.nextVerse() },
                   modifier = Modifier.size(48.dp)
                 ) {
-                  Icon(Icons.Filled.Forward10, null, tint = TextSecondary, modifier = Modifier.size(28.dp))
+                  Icon(Icons.Filled.FastForward, "Next Verse", tint = TextSecondary, modifier = Modifier.size(28.dp))
                 }
 
                 IconButton(
-                  onClick = { viewModel.nextVerse() },
-                  modifier = Modifier.size(56.dp).testTag("next_button")
+                  onClick = { viewModel.nextSurah() },
+                  modifier = Modifier.size(56.dp).testTag("next_surah_button")
                 ) {
-                  Icon(Icons.Filled.SkipNext, null, tint = TextPrimary, modifier = Modifier.size(36.dp))
+                  Icon(Icons.Filled.SkipNext, "Next Surah", tint = TextPrimary, modifier = Modifier.size(36.dp))
                 }
               }
             }

@@ -75,6 +75,7 @@ class NoorSpeechPipeline(
 
   var onIntentResolved: ((NoorIntent) -> Unit)? = null
   var onSpeechStarted: (() -> Unit)? = null
+  var onListeningFinished: (() -> Unit)? = null
   var onErrorOccurred: ((String) -> Unit)? = null
 
   // ML Kit language models
@@ -122,9 +123,11 @@ class NoorSpeechPipeline(
           override fun onBufferReceived(buffer: ByteArray?) {}
           override fun onEndOfSpeech() {
             _isListening.value = false
+            onListeningFinished?.invoke()
           }
           override fun onError(error: Int) {
             _isListening.value = false
+            onListeningFinished?.invoke()
             val message = when (error) {
               SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
               SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
@@ -141,6 +144,7 @@ class NoorSpeechPipeline(
           }
           override fun onResults(results: Bundle?) {
             _isListening.value = false
+            onListeningFinished?.invoke()
             val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             if (!matches.isNullOrEmpty()) {
               processSpokenText(matches[0])
@@ -156,8 +160,10 @@ class NoorSpeechPipeline(
     }
   }
 
-  fun startListening() {
-    isListeningLoopActive = true
+  fun startListening(oneShot: Boolean = false) {
+    if (!oneShot) {
+      isListeningLoopActive = true
+    }
     scope.launch(Dispatchers.Main) {
       if (speechRecognizer == null) initializeSpeechRecognizer()
       
@@ -165,6 +171,8 @@ class NoorSpeechPipeline(
         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
         putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        // Add this to attempt to hide extra UI/toasts if the service supports it
+        putExtra(RecognizerIntent.EXTRA_PROMPT, "")
       }
       speechRecognizer?.cancel()
       speechRecognizer?.startListening(intent)
