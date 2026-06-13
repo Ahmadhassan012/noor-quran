@@ -12,11 +12,13 @@ import androidx.compose.ui.platform.LocalContext
 
 import androidx.compose.ui.graphics.Color
 
-private val NoorLightColorScheme = lightColorScheme(
+private val NoorColorScheme = darkColorScheme(
   primary = Accent,
-  onPrimary = Color.White,
+  onPrimary = BgBase,
+  primaryContainer = AccentDim,
+  onPrimaryContainer = TextPrimary,
   secondary = TextSecondary,
-  onSecondary = TextPrimary,
+  onSecondary = BgBase,
   tertiary = TextArabic,
   background = BgBase,
   onBackground = TextPrimary,
@@ -30,15 +32,11 @@ private val NoorLightColorScheme = lightColorScheme(
 
 @Composable
 fun MyApplicationTheme(
-  darkTheme: Boolean = false, // We strictly enforce Noor's light manuscript theme
-  dynamicColor: Boolean = false, // Disable dynamic colors to preserve pure brand aesthetic
+  darkTheme: Boolean = true, // Premium dark theme by default
   content: @Composable () -> Unit,
 ) {
-  // Always use our custom manuscript light theme for Noor
-  val colorScheme = NoorLightColorScheme
-
   MaterialTheme(
-    colorScheme = colorScheme,
+    colorScheme = NoorColorScheme,
     typography = Typography,
     content = content
   )

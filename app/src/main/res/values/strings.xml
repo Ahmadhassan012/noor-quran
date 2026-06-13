@@ -1,3 +1,40 @@
 <resources>
     <string name="app_name">Noor</string>
+    <string name="app_tagline">AI Quran Companion</string>
+    
+    <!-- Onboarding -->
+    <string name="welcome_title">Welcome to Noor</string>
+    <string name="welcome_desc">A voice-first Quran companion designed for sensory accessibility.\nYou speak, Noor recites.</string>
+    <string name="mic_access_title">Voice Interaction</string>
+    <string name="mic_access_desc">Noor requires microphone access to understand your commands. All processing happens locally on your device.</string>
+    <string name="privacy_note">No audio is ever recorded or shared. Your privacy is our priority.</string>
+    <string name="language_title">Language Selection</string>
+    <string name="language_desc">Select your preferred interaction language.</string>
+    <string name="btn_get_started">Get Started</string>
+    <string name="btn_start_companion">Start Recitation</string>
+    <string name="btn_skip">Skip</string>
+    
+    <!-- Home Screen -->
+    <string name="status_idle">Say \"Noor\" or tap to speak</string>
+    <string name="status_listening">Listening…</string>
+    <string name="status_processing">Processing intent…</string>
+    <string name="status_speaking">Noor is speaking…</string>
+    <string name="status_playing">Reciting Quran…</string>
+    <string name="hint_type_command">Type a command</string>
+    <string name="placeholder_command">Try \"play surah fatihah\" or \"pause\"</string>
+    <string name="label_try">Try:</string>
+    
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_navigator">Quran Navigator</string>
+    <string name="nav_history">Conversations</string>
+    <string name="nav_bookmarks">Bookmarks</string>
+    <string name="nav_listening">Listening History</string>
+    <string name="nav_settings">Settings</string>
+    
+    <!-- Player -->
+    <string name="label_verse">Verse %1$d of %2$d</string>
+    <string name="label_juz">Juz %1$d</string>
+    <string name="btn_tap_to_talk">TAP TO TALK</string>
+    <string name="btn_tap_to_stop">STOP LISTENING</string>
 </resources>

@@ -48,6 +48,7 @@ class NoorSpeechPipeline(
 
   private var tts: TextToSpeech? = null
   private var isTtsInitialized = false
+  private var onSpeechFinished: (() -> Unit)? = null
 
   private val _recognizedText = MutableStateFlow("")
   val recognizedText = _recognizedText.asStateFlow()
@@ -99,24 +100,50 @@ class NoorSpeechPipeline(
       if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
         tts?.setLanguage(Locale.ENGLISH)
       }
+      
+      tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+        override fun onStart(utteranceId: String?) {
+          _isTtsSpeaking.value = true
+        }
+
+        override fun onDone(utteranceId: String?) {
+          _isTtsSpeaking.value = false
+          onSpeechFinished?.invoke()
+          onSpeechFinished = null
+        }
+
+        override fun onError(utteranceId: String?) {
+          _isTtsSpeaking.value = false
+          onSpeechFinished?.invoke()
+          onSpeechFinished = null
+        }
+      })
+      
       isTtsInitialized = true
     } else {
       Log.e("NoorSpeechPipeline", "TTS Initialization failed")
     }
   }
 
-  fun speak(text: String) {
-    if (!isTtsInitialized) {
+  suspend fun speak(text: String) = suspendCancellableCoroutine { continuation ->
+    if (!isTtsInitialized || tts == null) {
       Log.w("NoorSpeechPipeline", "TTS not initialized yet")
-      return
+      continuation.resume(Unit)
+      return@suspendCancellableCoroutine
     }
-    _isTtsSpeaking.value = true
-    tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "NoorSpeech")
+
+    onSpeechFinished = {
+      if (continuation.isActive) continuation.resume(Unit)
+    }
+
+    val params = android.os.Bundle()
+    params.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "NoorUtterance")
     
-    // Simple state timing fallback as TTS done listener is optional
-    scope.launch {
-      kotlinx.coroutines.delay((text.split(" ").size * 400L).coerceAtLeast(1200L))
+    val result = tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, "NoorUtterance")
+    if (result == TextToSpeech.ERROR) {
       _isTtsSpeaking.value = false
+      onSpeechFinished = null
+      if (continuation.isActive) continuation.resume(Unit)
     }
   }
 

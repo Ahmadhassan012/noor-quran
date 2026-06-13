@@ -189,7 +189,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
         val s = QuranData.surahs.firstOrNull { it.number == intent.surahNumber }
         if (s != null) {
           if (intent.verseNumber > s.verseCount) {
-             "Surah ${s.englishName} has only ${s.verseCount} verses."
+             "Surah ${s.englishName} contains only ${s.verseCount} verses."
           } else {
             // Save Listening History Log
             viewModelScope.launch(Dispatchers.IO) {
@@ -205,14 +205,14 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
                 )
               )
             }
-            if (intent.verseNumber == 1) "Reciting Surah ${s.englishName}." else "Reciting Surah ${s.englishName} from verse ${intent.verseNumber}."
+            if (intent.verseNumber == 1) "Now reciting Surah ${s.englishName}." else "Now reciting Surah ${s.englishName}, beginning from verse ${intent.verseNumber}."
           }
         } else {
-          "Surah not recognized. Try again."
+          "I couldn't find that Surah. Please try again."
         }
       }
       is NoorIntent.PlayJuz -> {
-        "Playing Juz ${intent.juzNumber}."
+        "Starting recitation of Juz ${intent.juzNumber}."
       }
       is NoorIntent.Pause -> {
         "Recitation paused."
@@ -242,11 +242,11 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
                   savedAt = System.currentTimeMillis()
                 )
               )
-              "Bookmarked."
+              "Verse bookmarked."
             }
-          } else "Cannot bookmark right now."
+          } else "I'm unable to bookmark this position right now."
         } else {
-          "Nothing is playing to bookmark."
+          "There is no active recitation to bookmark."
         }
       }
       is NoorIntent.JumpToVerse -> {
@@ -259,27 +259,27 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             "This Surah has only ${s?.verseCount ?: 0} verses."
           }
         } else {
-          "Please select a Surah to play first."
+          "Please select a Surah before specifying a verse."
         }
       }
       is NoorIntent.Forward -> {
-        "Forwarding verse."
+        "Moving to the next verse."
       }
       is NoorIntent.Backward -> {
-        "Rewinding verse."
+        "Returning to the previous verse."
       }
       is NoorIntent.QueryContext -> {
         val sNum = audioPlayer.currentSurah.value
         val vNum = audioPlayer.currentVerse.value
         if (sNum != null && vNum != null) {
           val s = QuranData.surahs.firstOrNull { it.number == sNum }
-          "You are hearing Surah ${s?.englishName}, verse $vNum."
+          "You are listening to Surah ${s?.englishName}, verse $vNum."
         } else {
-          "Nothing is playing currently."
+          "No recitation is currently active."
         }
       }
       is NoorIntent.Unknown -> {
-        "I didn't quite catch that. Please state a Surah or verse command."
+        "I'm sorry, I didn't quite catch that. You can ask me to play a Surah, Juz, or control playback."
       }
     }
 
@@ -309,9 +309,6 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
 
     // Speak confirmation response vocally
     speechPipeline.speak(responseText)
-
-    // Wait slightly for TTS to speak explanation before executing transport command
-    kotlinx.coroutines.delay(1600L)
 
     // Execute actual playback or state command
     when (intent) {
@@ -426,8 +423,21 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
   }
 
   // NAVIGATION ACTIONS
-  fun navigateTo(screen: AppScreen) {
+  fun navigateTo(screen: AppScreen, addToBackStack: Boolean = true) {
+    if (addToBackStack && _currentScreen.value != screen) {
+      // Simple logic: if we go to a sub-screen, we can always go back to HOME
+      // For more complex apps we'd use a real stack, but this suffices for now
+    }
     _currentScreen.value = screen
+  }
+
+  fun handleBack(): Boolean {
+    return if (_currentScreen.value != AppScreen.HOME && _currentScreen.value != AppScreen.ONBOARDING) {
+      _currentScreen.value = AppScreen.HOME
+      true
+    } else {
+      false
+    }
   }
 
   fun nextOnboardingStep() {
