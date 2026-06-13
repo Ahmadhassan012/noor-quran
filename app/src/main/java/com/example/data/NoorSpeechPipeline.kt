@@ -1,11 +1,6 @@
 package com.example.data
 
 import android.content.Context
-import android.content.Intent
-import android.os.Bundle
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import com.google.mlkit.nl.languageid.LanguageIdentification
@@ -54,15 +49,6 @@ class NoorSpeechPipeline(
   private var tts: TextToSpeech? = null
   private var isTtsInitialized = false
 
-  val isSttAvailable: Boolean
-    get() = SpeechRecognizer.isRecognitionAvailable(context)
-
-  private var speechRecognizer: SpeechRecognizer? = null
-  private var recognizerIntent: Intent? = null
-
-  private val _isListening = MutableStateFlow(false)
-  val isListening = _isListening.asStateFlow()
-
   private val _recognizedText = MutableStateFlow("")
   val recognizedText = _recognizedText.asStateFlow()
 
@@ -99,7 +85,6 @@ class NoorSpeechPipeline(
   init {
     scope.launch(Dispatchers.Main) {
       initializeTts()
-      initializeStt()
       downloadTranslationModels()
     }
   }
@@ -135,64 +120,6 @@ class NoorSpeechPipeline(
     }
   }
 
-  private fun initializeStt() {
-    if (SpeechRecognizer.isRecognitionAvailable(context)) {
-      speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-      recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-        putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
-        putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-        // Accept multiple preferred languages
-        putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
-        putExtra(RecognizerIntent.EXTRA_SUPPORTED_LANGUAGES, arrayListOf("en", "ur", "ar"))
-      }
-
-      speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-        override fun onReadyForSpeech(params: Bundle?) {
-          _isListening.value = true
-          _recognizedText.value = ""
-          _translatedText.value = ""
-        }
-
-        override fun onBeginningOfSpeech() {}
-        override fun onRmsChanged(rmsdB: Float) {}
-        override fun onBufferReceived(buffer: ByteArray?) {}
-        
-        override fun onEndOfSpeech() {
-          _isListening.value = false
-        }
-
-        override fun onError(error: Int) {
-          _isListening.value = false
-          val message = when (error) {
-            SpeechRecognizer.ERROR_NO_MATCH -> "No match found"
-            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
-            SpeechRecognizer.ERROR_NETWORK -> "Network interface failure"
-            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Permissions required"
-            else -> "Speech engine error ($error)"
-          }
-          onErrorOccurred?.invoke(message)
-        }
-
-        override fun onResults(results: Bundle?) {
-          val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-          if (!matches.isNullOrEmpty()) {
-            processSpokenText(matches[0])
-          }
-        }
-
-        override fun onPartialResults(partialResults: Bundle?) {
-          val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-          if (!matches.isNullOrEmpty()) {
-            _recognizedText.value = matches[0]
-          }
-        }
-
-        override fun onEvent(eventType: Int, params: Bundle?) {}
-      })
-    }
-  }
-
   private fun downloadTranslationModels() {
     scope.launch(Dispatchers.IO) {
       try {
@@ -203,19 +130,6 @@ class NoorSpeechPipeline(
         Log.e("NoorSpeechPipeline", "ML Kit download failed", e)
       }
     }
-  }
-
-  fun startListening() {
-    speechRecognizer?.startListening(recognizerIntent)
-  }
-
-  fun stopListening() {
-    speechRecognizer?.stopListening()
-    _isListening.value = false
-  }
-
-  fun containsArabicOrUrdu(text: String): Boolean {
-    return text.any { it.code in 0x0600..0x06FF }
   }
 
   fun processSpokenText(text: String) {
@@ -381,9 +295,11 @@ class NoorSpeechPipeline(
     return NoorIntent.Unknown
   }
 
+  fun containsArabicOrUrdu(text: String): Boolean {
+    return text.any { it.code in 0x0600..0x06FF }
+  }
+
   fun release() {
-    speechRecognizer?.destroy()
-    speechRecognizer = null
     tts?.stop()
     tts?.shutdown()
     tts = null

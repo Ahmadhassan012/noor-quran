@@ -1,5 +1,9 @@
 package com.example.ui
 
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -367,6 +371,30 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
   val rawText by viewModel.speechPipeline.recognizedText.collectAsState()
   val transText by viewModel.speechPipeline.translatedText.collectAsState()
   val userLang by viewModel.userLanguage.collectAsState()
+
+  val voiceLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.StartActivityForResult()
+  ) { result ->
+    viewModel.setListening(false)
+    val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+    if (!matches.isNullOrEmpty()) {
+      viewModel.speechPipeline.processSpokenText(matches[0])
+    }
+  }
+
+  fun launchVoiceRecognition() {
+    viewModel.setListening(true)
+    val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+      putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+      putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+      putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
+    }
+    try {
+      voiceLauncher.launch(intent)
+    } catch (e: Exception) {
+      viewModel.setListening(false)
+    }
+  }
   
   // Audio Player states
   val currentSurah by viewModel.audioPlayer.currentSurah.collectAsState()
@@ -448,34 +476,11 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
       modifier = Modifier.weight(1f),
       verticalArrangement = Arrangement.Center
     ) {
-      if (!viewModel.speechPipeline.isSttAvailable) {
-        Box(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 8.dp, end = 8.dp, bottom = 12.dp)
-            .background(BgSurface, RoundedCornerShape(16.dp))
-            .border(1.dp, Warning.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
-            .padding(12.dp)
-        ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Icon(Icons.Filled.Info, contentDescription = "Speech Assist active", tint = Warning, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(10.dp))
-            Text(
-              text = "System Speech Services are offline. Using visual speech simulator for testing & backup control.",
-              style = Typography.bodySmall,
-              color = TextSecondary
-            )
-          }
-        }
-      }
-
       NoorOrb(orbState = orbState, onClick = {
         if (orbState == OrbState.LISTENING) {
-          viewModel.speechPipeline.stopListening()
+          viewModel.setListening(false)
         } else {
-          viewModel.speechPipeline.startListening()
+          launchVoiceRecognition()
         }
       })
 
@@ -494,23 +499,23 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
         fontWeight = FontWeight.Bold
       )
 
-      var showSimulator by remember { mutableStateOf(!viewModel.speechPipeline.isSttAvailable) }
-      var simulatedCommand by remember { mutableStateOf("") }
-
       Spacer(modifier = Modifier.height(16.dp))
 
-      if (!showSimulator) {
+      var showTextInput by remember { mutableStateOf(false) }
+      var typedCommand by remember { mutableStateOf("") }
+
+      if (!showTextInput) {
         Row(
           modifier = Modifier
             .background(BgSurface, RoundedCornerShape(16.dp))
             .border(1.dp, Accent.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
-            .clickable { showSimulator = true }
+            .clickable { showTextInput = true }
             .padding(horizontal = 16.dp, vertical = 8.dp),
           verticalAlignment = Alignment.CenterVertically
         ) {
           Icon(Icons.Filled.Keyboard, contentDescription = null, tint = Accent, modifier = Modifier.size(16.dp))
           Spacer(modifier = Modifier.width(8.dp))
-          Text("No voice? Type a command", style = Typography.labelMedium, color = Accent, fontWeight = FontWeight.Bold)
+          Text("Type a command", style = Typography.labelMedium, color = Accent, fontWeight = FontWeight.Bold)
         }
       } else {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -524,8 +529,8 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
           ) {
             TextField(
-              value = simulatedCommand,
-              onValueChange = { simulatedCommand = it },
+              value = typedCommand,
+              onValueChange = { typedCommand = it },
               placeholder = { Text("Type: 'play surah fatihah' or 'pause'", style = Typography.bodyMedium, color = TextSecondary) },
               modifier = Modifier.weight(1f),
               singleLine = true,
@@ -544,24 +549,22 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
 
             IconButton(
               onClick = {
-                if (simulatedCommand.isNotBlank()) {
-                  viewModel.speechPipeline.processSpokenText(simulatedCommand)
-                  simulatedCommand = ""
+                if (typedCommand.isNotBlank()) {
+                  viewModel.speechPipeline.processSpokenText(typedCommand)
+                  typedCommand = ""
                 }
               },
-              enabled = simulatedCommand.isNotBlank()
+              enabled = typedCommand.isNotBlank()
             ) {
               Icon(
                 imageVector = Icons.Filled.Send,
                 contentDescription = "Send Command",
-                tint = if (simulatedCommand.isNotBlank()) Accent else TextTertiary
+                tint = if (typedCommand.isNotBlank()) Accent else TextTertiary
               )
             }
 
-            if (viewModel.speechPipeline.isSttAvailable) {
-              IconButton(onClick = { showSimulator = false }) {
-                Icon(Icons.Filled.Close, contentDescription = "Close simulator", tint = TextSecondary, modifier = Modifier.size(18.dp))
-              }
+            IconButton(onClick = { showTextInput = false }) {
+              Icon(Icons.Filled.Close, contentDescription = "Close", tint = TextSecondary, modifier = Modifier.size(18.dp))
             }
           }
 
@@ -775,9 +778,9 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
       Button(
         onClick = {
           if (isListening) {
-            viewModel.speechPipeline.stopListening()
+            viewModel.setListening(false)
           } else {
-            viewModel.speechPipeline.startListening()
+            launchVoiceRecognition()
           }
         },
         colors = ButtonDefaults.buttonColors(

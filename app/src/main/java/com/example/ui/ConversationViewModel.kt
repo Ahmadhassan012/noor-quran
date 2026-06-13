@@ -49,6 +49,9 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
   private val _orbState = MutableStateFlow(OrbState.IDLE)
   val orbState = _orbState.asStateFlow()
 
+  private val _isListening = MutableStateFlow(false)
+  val isListening = _isListening.asStateFlow()
+
   private val _activeSessionId = MutableStateFlow(UUID.randomUUID().toString())
   val activeSessionId = _activeSessionId.asStateFlow()
 
@@ -129,32 +132,15 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
 
     speechPipeline.onErrorOccurred = { errMessage ->
       viewModelScope.launch {
-        Log.e("ConversationViewModel", "Speech Recognizer error: $errMessage")
+        Log.e("ConversationViewModel", "Speech error: $errMessage")
         _orbState.value = if (audioPlayer.isPlaying.value) OrbState.PLAYING else OrbState.IDLE
-        
-        // Speak beautiful guiding error responses so visually impaired users aren't left in a feedback vacuum
-        val helpfulFeedback = when {
-          errMessage.contains("No match", ignoreCase = true) -> {
-            "I didn't quite catch that. Please speak again."
-          }
-          errMessage.contains("Permission", ignoreCase = true) -> {
-            "Microphone permission is required to listen to your voice."
-          }
-          errMessage.contains("Network", ignoreCase = true) -> {
-            "A network issue occurred. Please check your connection or type your command."
-          }
-          else -> {
-            "Voice input had an issue. Please try again."
-          }
-        }
-        speechPipeline.speak(helpfulFeedback)
       }
     }
     
     // Track speech pipeline states
     viewModelScope.launch {
       combine(
-        speechPipeline.isListening,
+        _isListening,
         speechPipeline.isTtsSpeaking,
         audioPlayer.isPlaying
       ) { listening, TtsSpeaking, playing ->
@@ -481,6 +467,10 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
   fun setPushToHold(hold: Boolean) {
     _pushToHold.value = hold
     prefs.edit().putBoolean("push_to_hold", hold).apply()
+  }
+
+  fun setListening(listening: Boolean) {
+    _isListening.value = listening
   }
 
   override fun onCleared() {
