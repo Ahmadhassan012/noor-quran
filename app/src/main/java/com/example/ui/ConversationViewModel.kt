@@ -548,9 +548,3 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     speechPipeline.release()
   }
 }
-erride fun onCleared() {
-    super.onCleared()
-    audioPlayer.release()
-    speechPipeline.release()
-  }
-}
