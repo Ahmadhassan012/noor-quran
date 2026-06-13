@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.activity.compose.BackHandler
 import com.example.R
 import androidx.compose.animation.*
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -194,7 +195,6 @@ data class DrawerItem(val screen: AppScreen, val title: String, val icon: ImageV
 
 // 2. ONBOARDING SCREEN
 
-import androidx.compose.ui.res.stringResource
 ...
 @Composable
 fun OnboardingScreen(viewModel: ConversationViewModel) {
