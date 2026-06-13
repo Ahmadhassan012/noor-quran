@@ -86,6 +86,9 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
   private val _autoContinue = MutableStateFlow(prefs.getBoolean("auto_continue", true))
   val autoContinue = _autoContinue.asStateFlow()
 
+  private val _handsFreeMode = MutableStateFlow(prefs.getBoolean("hands_free", false))
+  val handsFreeMode = _handsFreeMode.asStateFlow()
+
   private val _wakeSensitivity = MutableStateFlow(prefs.getString("sensitivity", "Medium") ?: "Medium")
   val wakeSensitivity = _wakeSensitivity.asStateFlow()
 
@@ -404,7 +407,9 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
       audioPlayer.playVerse(sNum + 1, 1, _reciter.value)
     } else {
       audioPlayer.stop()
-      speechPipeline.speak("End of the Quran recitation.")
+      viewModelScope.launch {
+        speechPipeline.speak("End of the Quran recitation.")
+      }
     }
   }
 
@@ -438,7 +443,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
       val finished = noorDao.isBookmarked(key)
       if (finished) {
         noorDao.deleteBookmarkById(key)
-        speechPipeline.speak("Bookmark removed.")
+        viewModelScope.launch { speechPipeline.speak("Bookmark removed.") }
       } else {
         val s = QuranData.surahs.firstOrNull { it.number == currS } ?: return@launch
         noorDao.insertBookmark(
@@ -451,7 +456,7 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
             savedAt = System.currentTimeMillis()
           )
         )
-        speechPipeline.speak("Bookmarked.")
+        viewModelScope.launch { speechPipeline.speak("Bookmarked.") }
       }
     }
   }
