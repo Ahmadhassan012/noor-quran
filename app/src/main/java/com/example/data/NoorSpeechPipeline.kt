@@ -1,6 +1,11 @@
 package com.example.data
 
 import android.content.Context
+import android.content.Intent
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.util.Log
 import com.google.mlkit.nl.languageid.LanguageIdentification
@@ -50,6 +55,12 @@ class NoorSpeechPipeline(
   private var isTtsInitialized = false
   private var onSpeechFinished: (() -> Unit)? = null
 
+  // Speech Recognizer for background listening
+  private var speechRecognizer: SpeechRecognizer? = null
+  private var isListeningLoopActive = false
+  private val _isListening = MutableStateFlow(false)
+  val isListening = _isListening.asStateFlow()
+
   private val _recognizedText = MutableStateFlow("")
   val recognizedText = _recognizedText.asStateFlow()
 
@@ -63,6 +74,7 @@ class NoorSpeechPipeline(
   val isTtsSpeaking = _isTtsSpeaking.asStateFlow()
 
   var onIntentResolved: ((NoorIntent) -> Unit)? = null
+  var onSpeechStarted: (() -> Unit)? = null
   var onErrorOccurred: ((String) -> Unit)? = null
 
   // ML Kit language models
@@ -86,6 +98,7 @@ class NoorSpeechPipeline(
   init {
     scope.launch(Dispatchers.Main) {
       initializeTts()
+      initializeSpeechRecognizer()
       downloadTranslationModels()
     }
   }
@@ -94,24 +107,95 @@ class NoorSpeechPipeline(
     tts = TextToSpeech(context, this)
   }
 
+  private fun initializeSpeechRecognizer() {
+    if (SpeechRecognizer.isRecognitionAvailable(context)) {
+      speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+        setRecognitionListener(object : RecognitionListener {
+          override fun onReadyForSpeech(params: Bundle?) {
+            Log.i("NoorSpeechPipeline", "SpeechRecognizer Ready")
+            _isListening.value = true
+          }
+          override fun onBeginningOfSpeech() {
+            onSpeechStarted?.invoke()
+          }
+          override fun onRmsChanged(rmsdB: Float) {}
+          override fun onBufferReceived(buffer: ByteArray?) {}
+          override fun onEndOfSpeech() {
+            _isListening.value = false
+          }
+          override fun onError(error: Int) {
+            _isListening.value = false
+            val message = when (error) {
+              SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+              SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
+              SpeechRecognizer.ERROR_NETWORK -> "Network error"
+              SpeechRecognizer.ERROR_NO_MATCH -> "No speech recognized"
+              SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
+              else -> "Recognition error: $error"
+            }
+            Log.w("NoorSpeechPipeline", message)
+            
+            if (isListeningLoopActive) {
+              startListening()
+            }
+          }
+          override fun onResults(results: Bundle?) {
+            _isListening.value = false
+            val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            if (!matches.isNullOrEmpty()) {
+              processSpokenText(matches[0])
+            }
+            if (isListeningLoopActive) {
+              startListening()
+            }
+          }
+          override fun onPartialResults(partialResults: Bundle?) {}
+          override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+      }
+    }
+  }
+
+  fun startListening() {
+    isListeningLoopActive = true
+    scope.launch(Dispatchers.Main) {
+      if (speechRecognizer == null) initializeSpeechRecognizer()
+      
+      val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+        putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+        putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+      }
+      speechRecognizer?.cancel()
+      speechRecognizer?.startListening(intent)
+    }
+  }
+
+  fun stopListening() {
+    isListeningLoopActive = false
+    scope.launch(Dispatchers.Main) {
+      speechRecognizer?.stopListening()
+      speechRecognizer?.cancel()
+      _isListening.value = false
+    }
+  }
+
   override fun onInit(status: Int) {
     if (status == TextToSpeech.SUCCESS) {
       val result = tts?.setLanguage(Locale.getDefault())
       if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
         tts?.setLanguage(Locale.ENGLISH)
       }
-      
+
       tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
         override fun onStart(utteranceId: String?) {
           _isTtsSpeaking.value = true
         }
-
         override fun onDone(utteranceId: String?) {
           _isTtsSpeaking.value = false
           onSpeechFinished?.invoke()
           onSpeechFinished = null
         }
-
         override fun onError(utteranceId: String?) {
           _isTtsSpeaking.value = false
           onSpeechFinished?.invoke()
@@ -132,7 +216,16 @@ class NoorSpeechPipeline(
       return@suspendCancellableCoroutine
     }
 
+    val wasListeningLoopActive = isListeningLoopActive
+    if (wasListeningLoopActive) {
+      speechRecognizer?.stopListening()
+      speechRecognizer?.cancel()
+    }
+
     onSpeechFinished = {
+      if (wasListeningLoopActive) {
+        startListening()
+      }
       if (continuation.isActive) continuation.resume(Unit)
     }
 
@@ -143,6 +236,7 @@ class NoorSpeechPipeline(
     if (result == TextToSpeech.ERROR) {
       _isTtsSpeaking.value = false
       onSpeechFinished = null
+      if (wasListeningLoopActive) startListening()
       if (continuation.isActive) continuation.resume(Unit)
     }
   }
@@ -327,6 +421,9 @@ class NoorSpeechPipeline(
   }
 
   fun release() {
+    stopListening()
+    speechRecognizer?.destroy()
+    speechRecognizer = null
     tts?.stop()
     tts?.shutdown()
     tts = null

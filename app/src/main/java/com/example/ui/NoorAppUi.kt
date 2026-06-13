@@ -394,9 +394,11 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
     if (!matches.isNullOrEmpty()) {
       viewModel.speechPipeline.processSpokenText(matches[0])
     }
+    viewModel.startHandsFreeListening()
   }
 
   fun launchVoiceRecognition() {
+    viewModel.speechPipeline.stopListening()
     viewModel.setListening(true)
     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
       putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -513,6 +515,16 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 0.5.sp
       )
+
+      val handsFree by viewModel.handsFreeMode.collectAsState()
+      if (handsFree) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Icon(Icons.Filled.AutoMode, null, tint = Accent, modifier = Modifier.size(14.dp))
+          Spacer(modifier = Modifier.width(4.dp))
+          Text("Hands-free Active", style = Typography.labelSmall, color = Accent)
+        }
+      }
 
       Spacer(modifier = Modifier.height(24.dp))
 
@@ -1571,6 +1583,25 @@ fun SettingsScreen(viewModel: ConversationViewModel, onBack: () -> Unit) {
               Switch(
                 checked = autoplay,
                 onCheckedChange = { viewModel.setAutoContinue(it) },
+                colors = SwitchDefaults.colors(checkedThumbColor = BgBase, checkedTrackColor = Accent, uncheckedTrackColor = BgElevated)
+              )
+            }
+
+            HorizontalDivider(color = TextTertiary.copy(alpha = 0.1f), modifier = Modifier.padding(vertical = 16.dp))
+
+            // Hands-free switch
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Column(modifier = Modifier.weight(1f)) {
+                Text("Hands-free Interruption", style = Typography.bodyLarge, color = TextPrimary, fontWeight = FontWeight.Bold)
+                Text("App listens continuously; interrupt by speaking", style = Typography.bodySmall, color = TextSecondary)
+              }
+              Switch(
+                checked = handsFree,
+                onCheckedChange = { viewModel.setHandsFreeMode(it) },
                 colors = SwitchDefaults.colors(checkedThumbColor = BgBase, checkedTrackColor = Accent, uncheckedTrackColor = BgElevated)
               )
             }

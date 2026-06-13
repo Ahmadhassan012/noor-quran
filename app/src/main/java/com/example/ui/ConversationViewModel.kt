@@ -141,11 +141,12 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     viewModelScope.launch {
       combine(
         _isListening,
+        speechPipeline.isListening,
         speechPipeline.isTtsSpeaking,
         audioPlayer.isPlaying
-      ) { listening, TtsSpeaking, playing ->
+      ) { manualListening, bgListening, TtsSpeaking, playing ->
         when {
-          listening -> OrbState.LISTENING
+          manualListening || bgListening -> OrbState.LISTENING
           TtsSpeaking -> OrbState.SPEAKING
           playing -> OrbState.PLAYING
           else -> OrbState.IDLE
@@ -153,6 +154,10 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
       }.collect { calculatedState ->
         _orbState.value = calculatedState
       }
+    }
+
+    if (_handsFreeMode.value) {
+      speechPipeline.startListening()
     }
   }
 
@@ -469,6 +474,16 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
     prefs.edit().putBoolean("auto_continue", auto).apply()
   }
 
+  fun setHandsFreeMode(enabled: Boolean) {
+    _handsFreeMode.value = enabled
+    prefs.edit().putBoolean("hands_free", enabled).apply()
+    if (enabled) {
+      speechPipeline.startListening()
+    } else {
+      speechPipeline.stopListening()
+    }
+  }
+
   fun setSensitivity(sens: String) {
     _wakeSensitivity.value = sens
     prefs.edit().putString("sensitivity", sens).apply()
@@ -484,6 +499,12 @@ class ConversationViewModel(application: Application) : AndroidViewModel(applica
   }
 
   override fun onCleared() {
+    super.onCleared()
+    audioPlayer.release()
+    speechPipeline.release()
+  }
+}
+erride fun onCleared() {
     super.onCleared()
     audioPlayer.release()
     speechPipeline.release()
