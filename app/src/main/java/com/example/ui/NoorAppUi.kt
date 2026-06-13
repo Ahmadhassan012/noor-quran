@@ -2,6 +2,7 @@ package com.example.ui
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import com.example.R
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -492,8 +493,8 @@ fun HomeScreen(viewModel: ConversationViewModel, onOpenDrawer: () -> Unit) {
         letterSpacing = 0.5.sp
       )
 
-      val handsFree by viewModel.handsFreeMode.collectAsState()
-      if (handsFree) {
+      val handsFreeModeActive by viewModel.handsFreeMode.collectAsState()
+      if (handsFreeModeActive) {
         Spacer(modifier = Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
           Icon(Icons.Filled.AutoMode, null, tint = Accent, modifier = Modifier.size(14.dp))
@@ -1473,6 +1474,7 @@ fun SettingsScreen(viewModel: ConversationViewModel, onBack: () -> Unit) {
   val currentReciter by viewModel.reciter.collectAsState()
   val userLang by viewModel.userLanguage.collectAsState()
   val autoplay by viewModel.autoContinue.collectAsState()
+  val handsFreeModeActive by viewModel.handsFreeMode.collectAsState()
   val pushToHold by viewModel.pushToHold.collectAsState()
 
   val downloadedList by viewModel.downloadedSurahs.collectAsState()
@@ -1576,7 +1578,7 @@ fun SettingsScreen(viewModel: ConversationViewModel, onBack: () -> Unit) {
                 Text("App listens continuously; interrupt by speaking", style = Typography.bodySmall, color = TextSecondary)
               }
               Switch(
-                checked = handsFree,
+                checked = handsFreeModeActive,
                 onCheckedChange = { viewModel.setHandsFreeMode(it) },
                 colors = SwitchDefaults.colors(checkedThumbColor = BgBase, checkedTrackColor = Accent, uncheckedTrackColor = BgElevated)
               )
